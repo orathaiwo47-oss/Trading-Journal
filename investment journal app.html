@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="สมุดลงทุน"/>
+<meta name="theme-color" content="#F3F4F0"/>
+<title>สมุดลงทุน</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>html,body{margin:0;padding:0;background:#F3F4F0;-webkit-text-size-adjust:100%;}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+
+const { useState, useEffect } = React;
+const mkIcon = (children) => (props) => {
+  const { size = 18, ...rest } = props || {};
+  return React.createElement("svg", { xmlns:"http://www.w3.org/2000/svg", width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:2, strokeLinecap:"round", strokeLinejoin:"round", ...rest }, children);
+};
+const Plus = mkIcon(<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>);
+const X = mkIcon(<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>);
+const ArrowLeft = mkIcon(<><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></>);
+const Search = mkIcon(<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>);
+const Download = mkIcon(<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>);
+const Trash2 = mkIcon(<><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></>);
+const AlertTriangle = mkIcon(<><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></>);
+const TrendingUp = mkIcon(<><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></>);
+const TrendingDown = mkIcon(<><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></>);
+const LineChart = mkIcon(<><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></>);
+const CalendarDays = mkIcon(<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>);
+const ListChecks = mkIcon(<><path d="M11 6h10"/><path d="M11 12h10"/><path d="M11 18h10"/><path d="m3 6 1 1 2-2"/><path d="m3 12 1 1 2-2"/><path d="m3 18 1 1 2-2"/></>);
+const LayoutDashboard = mkIcon(<><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></>);
+
+
+const OPTIONS = {
+  game: ["Value", "Momentum", "Relative-value + Rotation", "Theme laggard", "อื่นๆ"],
+  cheapReason: ["ถูกเพราะถูกมองข้าม", "ถูกเพราะพื้นฐานด้อย", "ยังไม่แน่ใจ"],
+  sellReason: ["ถึงเป้ากำไร %", "พื้นฐานเปลี่ยน/แย่ลง", "ธีมจบ/กระแสหมด", "อารมณ์/กลัวกำไรหาย", "อื่นๆ"],
+  rose: ["ใช่ ตามที่คาด", "ไม่ ขึ้นเพราะเหตุอื่น", "ยังไม่แน่ใจ"],
+  afterSell: ["ขึ้นต่อ", "นิ่ง", "ลง"],
+  processLuck: ["กระบวนการถูก", "แค่โชค (outcome ถูก)", "พลาดทั้งคู่"],
+};
+const GAME_SHORT = { "Relative-value + Rotation": "Rotation", "Theme laggard": "Laggard" };
+const TH_M = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+
+const EMPTY = {
+  id: null, entryDate: "", ticker: "", sector: "", game: "", thesis: "",
+  cheapEvidence: "", cheapReason: "", fairValue: "", targetEntry: "", actualEntry: "",
+  exitRules: "", marketContext: "", sellDate: "", sellPrice: "", sellReason: "",
+  rose: "", afterSell: "", processLuck: "", lesson: "", lots: [],
+};
+const RATCH_EXAMPLE = {
+  id: 1, entryDate: "2026-04-10", ticker: "RATCH", sector: "โรงไฟฟ้า",
+  game: "Relative-value + Rotation",
+  thesis: "ถูกในกลุ่มไฟฟ้า + คาดธีม data center / GULF จะลากราคาขึ้นตาม",
+  cheapEvidence: "P/BV 0.63x, Yield ~5.5% (ถูกกว่ากลุ่ม)",
+  cheapReason: "ยังไม่แน่ใจ", fairValue: "28", targetEntry: "28", actualEntry: "30",
+  exitRules: "+30% หรือ ราคาวิ่งเกินพื้นฐานจนตลาดเริ่มรับรู้",
+  marketContext: "ธีม data center / กลุ่มไฟฟ้าร้อน, GULF วิ่งนำ",
+  sellDate: "2026-07-10", sellPrice: "39.5", sellReason: "ถึงเป้ากำไร %",
+  rose: "ไม่ ขึ้นเพราะเหตุอื่น", afterSell: "ยังไม่แน่ใจ",
+  processLuck: "แค่โชค (outcome ถูก)",
+  lesson: "เข้าเกินราคาเป้า (อยากได้ 28 แต่ซื้อ 30) เพราะ FOMO ธีม — ครั้งหน้ารอราคาเป้า. ขายมีวินัยดี.",
+  lots: [
+    { id: 11, side: "buy", shares: 1000, price: 30 },
+    { id: 12, side: "sell", shares: 1000, price: 39.5 },
+  ],
+};
+const RATCH_PRICES = [
+  { d: "2026-04-10", p: 30 }, { d: "2026-04-24", p: 29.5 }, { d: "2026-05-08", p: 31.25 },
+  { d: "2026-05-22", p: 33 }, { d: "2026-06-05", p: 35.5 }, { d: "2026-06-19", p: 37.75 },
+  { d: "2026-07-03", p: 39 }, { d: "2026-07-10", p: 39.5 },
+];
+
+const TODAY = new Date().toISOString().slice(0, 10);
+const num = (v) => (v === "" || v == null || isNaN(Number(v)) ? null : Number(v));
+function lotAgg(lots) {
+  const L = lots || [];
+  const buys = L.filter((x) => x.side === "buy"), sells = L.filter((x) => x.side === "sell");
+  const sh = (a) => a.reduce((s, x) => s + Number(x.shares || 0), 0);
+  const val = (a) => a.reduce((s, x) => s + Number(x.shares || 0) * Number(x.price || 0), 0);
+  const buyShares = sh(buys), buyCost = val(buys), sellShares = sh(sells), sellValue = val(sells);
+  const avgBuy = buyShares ? buyCost / buyShares : null;
+  const avgSell = sellShares ? sellValue / sellShares : null;
+  const realized = (avgBuy != null && avgSell != null) ? (avgSell - avgBuy) * Math.min(buyShares, sellShares) : null;
+  return { count: L.length, buyShares, buyCost, avgBuy, sellShares, sellValue, avgSell, realized, heldShares: buyShares - sellShares };
+}
+const effBuy = (t) => { const a = lotAgg(t.lots); return a.avgBuy != null ? a.avgBuy : num(t.actualEntry); };
+const effSell = (t) => { const a = lotAgg(t.lots); return a.avgSell != null ? a.avgSell : num(t.sellPrice); };
+const isClosed = (t) => effSell(t) != null && effBuy(t) != null;
+const profit = (t) => (isClosed(t) ? (effSell(t) - effBuy(t)) / effBuy(t) : null);
+const isFomo = (t) => { const b = effBuy(t); return b != null && num(t.targetEntry) != null && b > num(t.targetEntry); };
+const holdDays = (t) => {
+  if (!t.entryDate || !t.sellDate) return null;
+  const d = (new Date(t.sellDate) - new Date(t.entryDate)) / 86400000;
+  return isNaN(d) ? null : Math.round(d);
+};
+const pct = (x) => (x == null ? "—" : (x >= 0 ? "+" : "") + (x * 100).toFixed(1) + "%");
+const baht = (x) => (x == null ? "—" : (x < 0 ? "-฿" : "฿") + Math.abs(Math.round(x)).toLocaleString());
+const fmtDate = (iso) => { if (!iso) return "—"; const d = new Date(iso); return d.getDate() + " " + TH_M[d.getMonth()]; };
+const gshort = (g) => GAME_SHORT[g] || g || "";
+
+function buildCSV(trades) {
+  const cols = [
+    ["วันที่เข้า", "entryDate"], ["หุ้น", "ticker"], ["กลุ่ม", "sector"], ["เกม", "game"],
+    ["Fair value", "fairValue"], ["ราคาเป้า", "targetEntry"], ["ราคาเข้า", "actualEntry"],
+    ["FOMO", (t) => (isFomo(t) ? "ใช่" : "")],
+    ["วันที่ขาย", "sellDate"], ["ราคาขาย", "sellPrice"],
+    ["หุ้นซื้อ", (t) => lotAgg(t.lots).buyShares || ""],
+    ["เงินลงทุน(บาท)", (t) => { const a = lotAgg(t.lots); return a.buyCost ? Math.round(a.buyCost) : ""; }],
+    ["หุ้นขาย", (t) => lotAgg(t.lots).sellShares || ""],
+    ["มูลค่าขาย(บาท)", (t) => { const a = lotAgg(t.lots); return a.sellValue ? Math.round(a.sellValue) : ""; }],
+    ["กำไร(บาท)", (t) => { const a = lotAgg(t.lots); return a.realized != null ? Math.round(a.realized) : ""; }],
+    ["กำไร%", (t) => (profit(t) != null ? (profit(t) * 100).toFixed(1) : "")],
+    ["ระยะถือ(วัน)", (t) => (holdDays(t) == null ? "" : holdDays(t))],
+    ["ขายเพราะ", "sellReason"], ["ขึ้นตามคาด", "rose"], ["ฝีมือ/โชค", "processLuck"],
+    ["Thesis", "thesis"], ["บทเรียน", "lesson"],
+  ];
+  const esc = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const head = cols.map((c) => esc(c[0])).join(",");
+  const rows = trades.map((t) => cols.map((c) => esc(typeof c[1] === "function" ? c[1](t) : t[c[1]])).join(","));
+  return [head, ...rows].join("\n");
+}
+
+function App() {
+  const [trades, setTrades] = useState([]);
+  const [prices, setPrices] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState("list");
+  const [draft, setDraft] = useState(null);
+  const [selTicker, setSelTicker] = useState(null);
+  const [calRef, setCalRef] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const [q, setQ] = useState("");
+  const [range, setRange] = useState("ALL");
+  const [csv, setCsv] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    try { const r = localStorage.getItem("trades"); if (r) setTrades(JSON.parse(r)); } catch (e) {}
+    try { const p = localStorage.getItem("prices"); if (p) setPrices(JSON.parse(p)); } catch (e) {}
+    setLoading(false);
+  }, []);
+
+  function persist(next) { setTrades(next); try { localStorage.setItem("trades", JSON.stringify(next)); } catch (e) {} }
+  function persistPrices(next) { setPrices(next); try { localStorage.setItem("prices", JSON.stringify(next)); } catch (e) {} }
+
+  function startNew() { setDraft({ ...EMPTY, id: Date.now() }); setView("form"); }
+  function edit(t) { setDraft({ ...t }); setView("form"); }
+  function save() {
+    const exists = trades.some((t) => t.id === draft.id);
+    const next = exists ? trades.map((t) => (t.id === draft.id ? draft : t)) : [draft, ...trades];
+    persist(next); setDraft(null); setView("list");
+  }
+  function remove() { persist(trades.filter((t) => t.id !== draft.id)); setDraft(null); setView("list"); }
+  function loadExample() { persist([RATCH_EXAMPLE, ...trades]); persistPrices({ ...prices, RATCH: RATCH_PRICES }); }
+  function addPrice(ticker, d, p) {
+    const list = (prices[ticker] || []).filter((x) => x.d !== d).concat([{ d, p: Number(p) }]);
+    persistPrices({ ...prices, [ticker]: list });
+  }
+  function deletePrice(ticker, d) { persistPrices({ ...prices, [ticker]: (prices[ticker] || []).filter((x) => x.d !== d) }); }
+
+  function openExport() { setCsv(buildCSV(trades)); setCopied(false); }
+  function downloadCSV() {
+    try {
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "trades.csv";
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch (e) {}
+  }
+  async function copyCSV() { try { await navigator.clipboard.writeText(csv); setCopied(true); } catch (e) { setCopied(false); } }
+
+  const closed = trades.filter(isClosed);
+  const wins = closed.filter((t) => profit(t) > 0);
+  const winRate = closed.length ? wins.length / closed.length : null;
+  const avgRet = closed.length ? closed.reduce((s, t) => s + profit(t), 0) / closed.length : null;
+  const fomoCount = trades.filter(isFomo).length;
+  const keptRising = closed.filter((t) => t.afterSell === "ขึ้นต่อ").length;
+  const asExpected = closed.filter((t) => (t.rose || "").startsWith("ใช่")).length;
+  const otherReason = closed.filter((t) => (t.rose || "").startsWith("ไม่")).length;
+  const processRight = trades.filter((t) => t.processLuck === "กระบวนการถูก").length;
+  const justLuck = trades.filter((t) => (t.processLuck || "").startsWith("แค่โชค")).length;
+
+  const now = Date.now();
+  const cutoff = range === "7D" ? now - 7 * 864e5 : range === "30D" ? now - 30 * 864e5 : -Infinity;
+  const s = (q || "").toLowerCase();
+  const shown = trades
+    .filter((t) => (!t.entryDate || +new Date(t.entryDate) >= cutoff) &&
+      (!s || [t.ticker, t.sector, t.game, t.thesis].some((v) => (v || "").toLowerCase().includes(s))))
+    .sort((a, b) => (+new Date(b.entryDate || 0)) - (+new Date(a.entryDate || 0)));
+
+  return (
+    <div className="app">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap');
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        .app {
+          --paper:#F3F4F0; --card:#FFFFFF; --ink:#17322C; --ink2:#3D5A52; --muted:#6E736B;
+          --line:#E2E4DD; --brass:#9C7C46; --green:#2E7D5B; --red:#B24A3F; --amber:#B9732A;
+          font-family:'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, sans-serif;
+          background:var(--paper); color:var(--ink); min-height:100vh; max-width:520px; margin:0 auto; padding:0 0 96px; position:relative;
+        }
+        @media (prefers-reduced-motion: no-preference){ .slidein{ animation:si .22s ease both; } }
+        @keyframes si{ from{ opacity:0; transform:translateY(6px);} to{opacity:1;transform:none;} }
+        .topbar{ padding:18px 20px 12px; border-bottom:1px solid var(--line); }
+        .brand{ font-size:20px; font-weight:700; letter-spacing:-.01em; }
+        .tagline{ font-size:12.5px; color:var(--brass); font-weight:500; margin-top:1px; }
+        .tabs{ display:flex; gap:2px; padding:10px 8px 0; }
+        .tab{ flex:1; text-align:center; padding:9px 0; font-size:12.5px; font-weight:600; color:var(--muted);
+          background:none; border:none; border-bottom:2px solid transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px; }
+        .tab.active{ color:var(--ink); border-bottom-color:var(--brass); }
+        .wrap{ padding:16px; }
+        .empty{ text-align:center; padding:52px 24px; color:var(--muted); }
+        .empty h3{ color:var(--ink); font-size:16px; margin:0 0 6px; }
+        .empty p{ font-size:14px; line-height:1.6; margin:0 0 18px; }
+        .link{ background:none; border:none; color:var(--brass); font-weight:600; font-size:14px; font-family:inherit; cursor:pointer; text-decoration:underline; }
+        .loghead h2{ font-size:24px; font-weight:700; letter-spacing:-.02em; margin:2px 0 2px; }
+        .loghead p{ font-size:13px; color:var(--muted); margin:0 0 14px; }
+        .toolbar{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
+        .search{ position:relative; }
+        .search input{ padding-left:38px; }
+        .search .si{ position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--muted); display:flex; }
+        .frow{ display:flex; gap:8px; align-items:center; }
+        .seg{ display:flex; background:#E7E9E3; border-radius:9px; padding:3px; }
+        .seg button{ font-family:inherit; font-size:13px; font-weight:600; color:var(--muted); background:none; border:none; padding:6px 13px; border-radius:7px; cursor:pointer; }
+        .seg button.on{ background:#fff; color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.06); }
+        .exportbtn{ margin-left:auto; display:inline-flex; align-items:center; gap:6px; font-family:inherit; font-size:13px; font-weight:600;
+          color:var(--ink2); background:var(--card); border:1px solid var(--line); border-radius:9px; padding:8px 12px; cursor:pointer; }
+        input, select, textarea{ width:100%; font-family:inherit; font-size:16px; color:var(--ink);
+          background:var(--card); border:1px solid var(--line); border-radius:10px; padding:11px 12px; }
+        input:focus, select:focus, textarea:focus{ outline:2px solid var(--brass); outline-offset:0; border-color:transparent; }
+        textarea{ resize:vertical; min-height:58px; line-height:1.5; }
+        .logtable{ background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+        .log-h{ display:flex; align-items:center; padding:10px 14px; background:#F6F7F3; font-size:11px; font-weight:700; color:var(--muted); }
+        .log-row{ display:flex; align-items:center; padding:13px 14px; border-top:1px solid var(--line); cursor:pointer; }
+        .c-date{ flex:0 0 62px; font-size:13px; color:var(--ink2); }
+        .c-sym{ flex:1; min-width:0; }
+        .c-sym b{ font-size:15.5px; font-weight:700; display:inline-flex; align-items:center; gap:6px; }
+        .dot{ width:7px; height:7px; border-radius:50%; background:var(--amber); display:inline-block; }
+        .c-tag{ display:block; font-size:12px; color:var(--muted); margin-top:2px; }
+        .c-ret{ flex:0 0 auto; text-align:right; font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; }
+        .pos{ color:var(--green); } .neg{ color:var(--red); } .flat{ color:var(--muted); }
+        .fab{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%); z-index:20;
+          background:var(--ink); color:#fff; border:none; border-radius:999px; padding:13px 22px; font-family:inherit; font-size:15px; font-weight:600;
+          display:flex; align-items:center; gap:8px; box-shadow:0 6px 20px rgba(23,50,44,.28); cursor:pointer; }
+        .fhead{ display:flex; align-items:center; gap:10px; padding:16px; border-bottom:1px solid var(--line); }
+        .iconbtn{ background:none; border:none; color:var(--ink); cursor:pointer; padding:4px; display:flex; }
+        .fhead h2{ font-size:17px; font-weight:700; margin:0; }
+        .sect{ font-size:12.5px; font-weight:700; color:var(--brass); margin:22px 2px 10px; display:flex; align-items:center; gap:8px; }
+        .sect::after{ content:""; flex:1; height:1px; background:var(--line); }
+        .field{ margin-bottom:13px; }
+        .field label{ display:block; font-size:13px; font-weight:600; color:var(--ink2); margin-bottom:5px; }
+        .two{ display:flex; gap:10px; } .two .field{ flex:1; }
+        .banner{ background:#F6ECDD; border:1px solid #E7D3B4; color:var(--amber); border-radius:10px; padding:10px 12px; font-size:13px; font-weight:600; display:flex; gap:8px; align-items:center; margin-bottom:13px; }
+        .live{ display:flex; gap:10px; margin:2px 0 4px; }
+        .live div{ flex:1; background:#EFF2EF; border-radius:10px; padding:10px 12px; }
+        .live .l{ font-size:11.5px; color:var(--muted); font-weight:600; }
+        .live .v{ font-size:17px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
+        .btns{ display:flex; gap:10px; margin:22px 0 8px; }
+        .btn{ flex:1; font-family:inherit; font-size:15px; font-weight:600; padding:13px; border-radius:11px; cursor:pointer; border:1px solid transparent; }
+        .btn-primary{ background:var(--ink); color:#fff; }
+        .btn-ghost{ background:none; color:var(--ink2); border-color:var(--line); }
+        .btn-danger{ background:none; color:var(--red); border-color:transparent; flex:0 0 auto; padding:13px 14px; }
+        .hero{ background:var(--ink); color:#fff; border-radius:16px; padding:20px; margin-bottom:14px; }
+        .hero .k{ font-size:13px; color:#C6D4CF; font-weight:600; }
+        .hero .big{ display:flex; align-items:baseline; gap:14px; margin-top:8px; flex-wrap:wrap; }
+        .hero .big b{ font-size:34px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1; }
+        .hero .vs{ font-size:15px; color:#9DB3AD; } .hero .luck b{ color:#E4B36A; }
+        .hero .note{ font-size:12.5px; color:#AFC1BC; margin-top:12px; line-height:1.5; }
+        .sgrid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+        .stat{ background:var(--card); border:1px solid var(--line); border-radius:13px; padding:14px 15px; }
+        .stat .v{ font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; }
+        .stat .l{ font-size:12.5px; color:var(--muted); margin-top:3px; font-weight:500; }
+        .block{ background:var(--card); border:1px solid var(--line); border-radius:13px; padding:6px 16px; margin-bottom:14px; }
+        .brow{ display:flex; justify-content:space-between; align-items:center; padding:11px 0; border-bottom:1px solid var(--line); font-size:14px; }
+        .brow:last-child{ border-bottom:none; }
+        .brow .n{ font-weight:700; font-variant-numeric:tabular-nums; }
+        .blab{ color:var(--ink2); } .bwarn{ color:var(--amber); font-weight:700; font-variant-numeric:tabular-nums; }
+        .readout{ font-size:13px; color:var(--muted); line-height:1.6; padding:2px 4px 4px; }
+        .chips{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+        .tchip{ font-family:inherit; font-size:14px; font-weight:600; padding:7px 14px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--ink2); cursor:pointer; }
+        .tchip.on{ background:var(--ink); color:#fff; border-color:var(--ink); }
+        .chartcard{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 10px 8px; margin-bottom:14px; }
+        .legend{ display:flex; gap:16px; justify-content:center; font-size:12px; color:var(--muted); padding:8px 0 4px; flex-wrap:wrap; }
+        .legend span{ display:inline-flex; align-items:center; gap:5px; }
+        .chart-empty{ text-align:center; color:var(--muted); font-size:13.5px; padding:36px 20px; line-height:1.6; }
+        .padd{ display:flex; gap:8px; align-items:flex-end; margin-bottom:12px; } .padd .field{ margin:0; }
+        .addbtn{ background:var(--ink); color:#fff; border:none; border-radius:10px; font-family:inherit; font-size:14px; font-weight:600; padding:11px 16px; cursor:pointer; white-space:nowrap; }
+        .plist{ background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+        .pp{ display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--line); font-size:14px; }
+        .pp:last-child{ border-bottom:none; }
+        .pp .d{ color:var(--ink2); } .pp .p{ font-weight:700; font-variant-numeric:tabular-nums; margin-left:auto; margin-right:12px; }
+        .pp button{ background:none; border:none; color:var(--muted); cursor:pointer; display:flex; padding:2px; }
+        .overlay{ position:fixed; inset:0; background:rgba(20,30,26,.42); display:flex; align-items:flex-end; justify-content:center; z-index:40; }
+        .sheet{ background:var(--paper); width:100%; max-width:520px; border-radius:18px 18px 0 0; padding:18px 16px 24px; max-height:82vh; overflow:auto; }
+        .sheet h3{ margin:0 0 4px; font-size:17px; } .sheet .sub{ margin:0 0 12px; font-size:13px; color:var(--muted); line-height:1.5; }
+        .sheet textarea{ height:150px; font-size:11.5px; font-family:ui-monospace, monospace; }
+        .sheetbtns{ display:flex; gap:10px; margin-top:12px; }
+        .calcard{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 12px; margin-bottom:14px; }
+        .calhead{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+        .calhead h3{ font-size:17px; font-weight:700; margin:0; }
+        .navbtns{ display:flex; gap:6px; }
+        .navbtns button{ background:var(--card); border:1px solid var(--line); border-radius:8px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; color:var(--ink); cursor:pointer; }
+        .dow{ display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-bottom:5px; }
+        .dow span{ text-align:center; font-size:11px; font-weight:700; color:var(--muted); }
+        .cal{ display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+        .cell{ position:relative; border:1px solid var(--line); border-radius:9px; min-height:52px; padding:5px 3px; display:flex; flex-direction:column; align-items:center; }
+        .cell .dn{ font-size:13px; font-weight:600; color:var(--ink2); }
+        .cell .rv{ font-size:10px; font-weight:700; margin-top:2px; font-variant-numeric:tabular-nums; }
+        .cell.other{ border-color:transparent; }
+        .cell.win{ background:#E7F0EB; border-color:#CFE1D7; } .cell.win .dn,.cell.win .rv{ color:var(--green); }
+        .cell.loss{ background:#F4E5E2; border-color:#E7CEC8; } .cell.loss .dn,.cell.loss .rv{ color:var(--red); }
+        .edot{ position:absolute; top:5px; right:6px; width:6px; height:6px; border-radius:50%; background:var(--brass); }
+        .callegend{ display:flex; gap:16px; justify-content:center; margin-top:14px; font-size:12.5px; color:var(--muted); flex-wrap:wrap; }
+        .callegend span{ display:inline-flex; align-items:center; gap:6px; }
+        .sw{ width:11px; height:11px; border-radius:3px; display:inline-block; }
+        .lotadd{ background:#F4F6F2; border:1px solid var(--line); border-radius:12px; padding:12px; }
+        .seg2{ display:flex; background:#E7E9E3; border-radius:9px; padding:3px; margin-bottom:10px; }
+        .seg2 button{ flex:1; font-family:inherit; font-size:14px; font-weight:700; color:var(--muted); background:none; border:none; padding:8px 0; border-radius:7px; cursor:pointer; }
+        .seg2 button.on.buy{ background:#fff; color:var(--green); box-shadow:0 1px 2px rgba(0,0,0,.06); }
+        .seg2 button.on.sell{ background:#fff; color:var(--red); box-shadow:0 1px 2px rgba(0,0,0,.06); }
+        .lotrow{ display:flex; align-items:center; gap:8px; }
+        .lotrow input{ flex:1; }
+        .mul{ color:var(--muted); font-weight:700; }
+        .lotfoot{ display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
+        .lottotal{ font-size:14px; font-weight:600; color:var(--ink2); }
+        .lotside{ font-size:12px; font-weight:700; padding:3px 10px; border-radius:999px; }
+        .lotside.buy{ background:#E7F0EB; color:var(--green); } .lotside.sell{ background:#F4E5E2; color:var(--red); }
+        .lotsum{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:2px 14px; margin-top:10px; }
+        .lotsum div{ display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid var(--line); font-size:14px; }
+        .lotsum div:last-child{ border-bottom:none; }
+        .lotsum span{ color:var(--ink2); } .lotsum b{ font-variant-numeric:tabular-nums; font-weight:700; }
+        .card2{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px; }
+        .c2head{ margin-bottom:14px; }
+        .c2head h3{ font-size:16px; font-weight:700; margin:0; display:inline; }
+        .c2head span{ font-size:12.5px; color:var(--muted); }
+        .wl{ display:flex; align-items:center; gap:16px; }
+        .donut{ width:116px; height:116px; flex:0 0 116px; }
+        .wlside{ flex:1; min-width:0; }
+        .wlrow{ display:flex; align-items:center; justify-content:space-between; font-size:14px; padding:3px 0; }
+        .wlrow span{ display:inline-flex; align-items:center; gap:7px; color:var(--ink2); }
+        .wlrow b{ font-weight:700; font-variant-numeric:tabular-nums; }
+        .d{ width:9px; height:9px; border-radius:50%; display:inline-block; } .d.g{ background:var(--green); } .d.r{ background:var(--red); }
+        .wlbar{ display:flex; align-items:center; justify-content:space-between; font-size:13.5px; padding:3px 0; }
+        .wlbar span{ color:var(--muted); } .wlbar b{ font-variant-numeric:tabular-nums; font-weight:700; }
+        .wlpay{ margin-top:8px; padding-top:8px; border-top:1px solid var(--line); font-size:13.5px; color:var(--muted); }
+        .wlpay b{ color:var(--ink); font-weight:700; margin-left:4px; }
+        .bd{ display:flex; flex-direction:column; gap:9px; }
+        .bdrow{ display:flex; align-items:center; gap:8px; cursor:pointer; }
+        .bdk{ flex:0 0 58px; font-size:13px; color:var(--ink2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .bdbar{ flex:1; position:relative; height:18px; }
+        .bdbar .mid{ position:absolute; left:50%; top:0; bottom:0; width:1px; background:var(--line); }
+        .bdfill{ position:absolute; top:2px; height:14px; border-radius:3px; }
+        .bdfill.pos{ background:var(--green); } .bdfill.neg{ background:var(--red); }
+        .bdv{ flex:0 0 66px; text-align:right; font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+        .bdtoggles{ display:flex; justify-content:space-between; gap:8px; margin-bottom:12px; }
+        .insights .c2head{ margin-bottom:2px; }
+        .ins{ display:flex; gap:11px; padding:13px 0; border-top:1px solid var(--line); }
+        .ins:first-of-type{ border-top:none; }
+        .insic{ flex:0 0 30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; }
+        .insic.up{ background:#E7F0EB; color:var(--green); } .insic.down{ background:#F4E5E2; color:var(--red); } .insic.flat{ background:#EEE9DF; color:var(--brass); }
+        .inst{ font-size:14.5px; font-weight:700; margin-bottom:2px; }
+        .insb{ font-size:13px; color:var(--muted); line-height:1.5; }
+      `}</style>
+
+      {view !== "form" && (
+        <>
+          <div className="topbar">
+            <div className="brand">สมุดลงทุน</div>
+            <div className="tagline">กระจกที่โกหกไม่ได้</div>
+          </div>
+          <div className="tabs">
+            <button className={"tab" + (view === "list" ? " active" : "")} onClick={() => setView("list")}><ListChecks size={15} /> ดีล</button>
+            <button className={"tab" + (view === "graph" ? " active" : "")} onClick={() => setView("graph")}><LineChart size={15} /> กราฟ</button>
+            <button className={"tab" + (view === "calendar" ? " active" : "")} onClick={() => setView("calendar")}><CalendarDays size={15} /> ปฏิทิน</button>
+            <button className={"tab" + (view === "stats" ? " active" : "")} onClick={() => setView("stats")}><LayoutDashboard size={15} /> แดชบอร์ด</button>
+          </div>
+        </>
+      )}
+
+      {loading && <div className="wrap"><p style={{ color: "var(--muted)" }}>กำลังโหลด…</p></div>}
+
+      {!loading && view === "list" && (
+        <div className="wrap slidein">
+          {trades.length === 0 ? (
+            <div className="empty">
+              <h3>ยังไม่มีดีล</h3>
+              <p>แตะปุ่ม + ด้านล่างเพื่อบันทึกดีลแรก<br />กรอกช่อง “ก่อนเข้า” ให้ครบก่อนกดซื้อจริง</p>
+              <button className="link" onClick={loadExample}>ดูตัวอย่างดีล RATCH</button>
+            </div>
+          ) : (
+            <>
+              <div className="loghead">
+                <h2>บันทึกการเทรด</h2>
+                <p>ทุกดีล ค้นหาและเรียงได้</p>
+              </div>
+              <div className="toolbar">
+                <div className="search">
+                  <span className="si"><Search size={17} /></span>
+                  <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหาหุ้น กลุ่ม หรือเกม…" />
+                </div>
+                <div className="frow">
+                  <div className="seg">
+                    {["ALL", "30D", "7D"].map((r) => (
+                      <button key={r} className={range === r ? "on" : ""} onClick={() => setRange(r)}>
+                        {r === "ALL" ? "ทั้งหมด" : r === "30D" ? "30 วัน" : "7 วัน"}
+                      </button>
+                    ))}
+                  </div>
+                  <button className="exportbtn" onClick={openExport}><Download size={15} /> Export CSV</button>
+                </div>
+              </div>
+
+              <div className="logtable">
+                <div className="log-h"><span className="c-date">วันที่</span><span className="c-sym">หุ้น</span><span className="c-ret">ผลตอบแทน</span></div>
+                {shown.length === 0 ? (
+                  <div style={{ padding: "28px 16px", textAlign: "center", color: "var(--muted)", fontSize: 14 }}>ไม่พบดีลที่ตรงกับที่ค้นหา</div>
+                ) : shown.map((t) => {
+                  const p = profit(t);
+                  return (
+                    <div className="log-row" key={t.id} onClick={() => edit(t)}>
+                      <span className="c-date">{fmtDate(t.entryDate)}</span>
+                      <span className="c-sym">
+                        <b>{t.ticker || "—"}{isFomo(t) && <span className="dot" title="ซื้อเกินเป้า" />}</b>
+                        <span className="c-tag">{gshort(t.game) || t.sector || (isClosed(t) ? "ปิดแล้ว" : "ถืออยู่")}</span>
+                      </span>
+                      <span className={"c-ret " + (p == null ? "flat" : p >= 0 ? "pos" : "neg")}>
+                        {p == null ? "ถืออยู่" : (p >= 0 ? "▲ " : "▼ ") + pct(p)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {!loading && view === "graph" && (
+        <GraphView trades={trades} prices={prices} sel={selTicker} setSel={setSelTicker} onAdd={addPrice} onDelete={deletePrice} onExample={loadExample} />
+      )}
+
+      {!loading && view === "calendar" && (
+        <CalendarView trades={trades} ref0={calRef} setRef0={setCalRef} onOpen={edit} />
+      )}
+
+      {!loading && view === "stats" && (
+        <div className="wrap slidein">
+          <div className="hero">
+            <div className="k">ฝีมือ หรือ โชค</div>
+            <div className="big">
+              <span><b>{processRight}</b></span><span className="vs">กระบวนการถูก</span>
+              <span className="luck"><b>{justLuck}</b></span><span className="vs">แค่โชค</span>
+            </div>
+            <div className="note">ถ้า “แค่โชค” มากกว่า “กระบวนการถูก” แปลว่ายังพึ่งตลาดใจดี ไม่ใช่ edge จริง — กรอกให้ครบ 8–10 ดีลข้ามสภาพตลาดหลายแบบ ตัวเลขนี้ถึงจะเชื่อถือได้</div>
+          </div>
+          <Insights trades={trades} />
+          <WinLoss trades={trades} />
+          <Breakdown trades={trades} onFilter={(k) => { setQ(k); setView("list"); }} />
+          <div className="sgrid">
+            <div className="stat"><div className="v">{trades.length}</div><div className="l">ดีลทั้งหมด</div></div>
+            <div className="stat"><div className="v">{closed.length}</div><div className="l">ปิดแล้ว</div></div>
+            <div className="stat"><div className="v">{winRate == null ? "—" : (winRate * 100).toFixed(0) + "%"}</div><div className="l">Win rate</div></div>
+            <div className="stat"><div className="v" style={{ color: avgRet == null ? "var(--ink)" : avgRet >= 0 ? "var(--green)" : "var(--red)" }}>{avgRet == null ? "—" : pct(avgRet)}</div><div className="l">กำไรเฉลี่ย/ดีล</div></div>
+          </div>
+          <div className="sect" style={{ marginTop: 4 }}>เช็กจุดอ่อน</div>
+          <div className="block">
+            <div className="brow"><span className="blab">ซื้อสูงกว่าเป้า (FOMO)</span><span className={fomoCount ? "bwarn" : "n"}>{fomoCount}</span></div>
+            <div className="brow"><span className="blab">ขายแล้วราคายังขึ้นต่อ</span><span className={keptRising ? "bwarn" : "n"}>{keptRising}</span></div>
+          </div>
+          <div className="sect">ราคาขึ้นเพราะอะไร</div>
+          <div className="block">
+            <div className="brow"><span className="blab">ตามที่คาด (thesis ถูก)</span><span className="n" style={{ color: "var(--green)" }}>{asExpected}</span></div>
+            <div className="brow"><span className="blab">เพราะเหตุอื่น (โชค)</span><span className={otherReason ? "bwarn" : "n"}>{otherReason}</span></div>
+          </div>
+          <div className="readout">กรอกช่อง “ก่อนเข้า” ให้ครบก่อนกดซื้อทุกครั้ง แล้วห้ามแก้ — นั่นคือหลักฐานที่สมองปั้นเรื่องใหม่ทับไม่ได้</div>
+        </div>
+      )}
+
+      {!loading && view === "list" && <button className="fab" onClick={startNew}><Plus size={19} /> บันทึกดีล</button>}
+
+      {view === "form" && draft && (
+        <Form draft={draft} setDraft={setDraft} onSave={save} onCancel={() => { setDraft(null); setView("list"); }} onDelete={remove} exists={trades.some((t) => t.id === draft.id)} />
+      )}
+
+      {csv != null && (
+        <div className="overlay" onClick={() => setCsv(null)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <h3>Export CSV</h3>
+            <p className="sub">ไฟล์เปิดใน Excel / Google Sheets ได้ (รองรับภาษาไทย) — กด “ดาวน์โหลด” หรือ “คัดลอก” ไปวางเองก็ได้</p>
+            <textarea readOnly value={csv} onFocus={(e) => e.target.select()} />
+            <div className="sheetbtns">
+              <button className="btn btn-ghost" onClick={() => setCsv(null)}>ปิด</button>
+              <button className="btn btn-ghost" onClick={copyCSV}>{copied ? "คัดลอกแล้ว ✓" : "คัดลอก"}</button>
+              <button className="btn btn-primary" onClick={downloadCSV}>ดาวน์โหลด</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GraphView({ trades, prices, sel, setSel, onAdd, onDelete, onExample }) {
+  const tickers = Array.from(new Set([...trades.map((t) => t.ticker).filter(Boolean), ...Object.keys(prices)]));
+  const active = sel && tickers.includes(sel) ? sel : tickers[0];
+  const [nd, setNd] = useState(TODAY);
+  const [np, setNp] = useState("");
+
+  if (tickers.length === 0) {
+    return (
+      <div className="wrap slidein">
+        <div className="empty">
+          <h3>ยังไม่มีหุ้นให้ติดตาม</h3>
+          <p>บันทึกดีลสักตัวก่อน แล้วกลับมากรอกราคาที่เห็นเป็นจุดๆ<br />แอปจะวาดเส้นเทรนด์พร้อมจุดซื้อ-ขายให้</p>
+          <button className="link" onClick={onExample}>ดูตัวอย่าง RATCH</button>
+        </div>
+      </div>
+    );
+  }
+
+  const tr = trades.filter((t) => t.ticker === active);
+  const manual = (prices[active] || []).map((x) => ({ t: +new Date(x.d), p: Number(x.p), d: x.d }));
+  const byDate = {};
+  tr.forEach((t) => {
+    if (t.entryDate && effBuy(t) != null) byDate[t.entryDate] = { t: +new Date(t.entryDate), p: effBuy(t), d: t.entryDate };
+    if (t.sellDate && effSell(t) != null) byDate[t.sellDate] = { t: +new Date(t.sellDate), p: effSell(t), d: t.sellDate };
+  });
+  manual.forEach((o) => { byDate[o.d] = o; });
+  const linePts = Object.values(byDate).sort((a, b) => a.t - b.t);
+  const markers = [];
+  tr.forEach((t) => {
+    if (t.entryDate && effBuy(t) != null) markers.push({ t: +new Date(t.entryDate), p: effBuy(t), kind: "buy" });
+    if (t.sellDate && effSell(t) != null) markers.push({ t: +new Date(t.sellDate), p: effSell(t), kind: "sell" });
+  });
+  const fairs = Array.from(new Set(tr.map((t) => num(t.fairValue)).filter((v) => v != null)));
+  const sortedManual = [...manual].sort((a, b) => b.t - a.t);
+
+  return (
+    <div className="wrap slidein">
+      <div className="chips">
+        {tickers.map((tk) => <button key={tk} className={"tchip" + (tk === active ? " on" : "")} onClick={() => setSel(tk)}>{tk}</button>)}
+      </div>
+      <div className="chartcard">
+        <Chart linePts={linePts} markers={markers} fairs={fairs} />
+        <div className="legend">
+          <span><svg width="14" height="14"><polygon points="7,2 12,11 2,11" fill="var(--green)" /></svg> ซื้อ</span>
+          <span><svg width="14" height="14"><polygon points="2,3 12,3 7,12" fill="var(--red)" /></svg> ขาย</span>
+          {fairs.length > 0 && <span><svg width="18" height="10"><line x1="0" y1="5" x2="18" y2="5" stroke="var(--brass)" strokeWidth="2" strokeDasharray="4 3" /></svg> Fair value</span>}
+        </div>
+      </div>
+      <div className="sect" style={{ marginTop: 4 }}>เพิ่มราคาที่เห็น</div>
+      <div className="padd">
+        <div className="field" style={{ flex: 1.2 }}><label>วันที่</label><input type="date" value={nd} onChange={(e) => setNd(e.target.value)} /></div>
+        <div className="field" style={{ flex: 1 }}><label>ราคา</label><input inputMode="decimal" value={np} onChange={(e) => setNp(e.target.value)} placeholder="เช่น 32.5" /></div>
+        <button className="addbtn" disabled={!nd || np === ""} onClick={() => { onAdd(active, nd, np); setNp(""); }}>เพิ่ม</button>
+      </div>
+      {sortedManual.length > 0 && (
+        <div className="plist">
+          {sortedManual.map((x) => (
+            <div className="pp" key={x.d}><span className="d">{x.d}</span><span className="p">{x.p}</span>
+              <button onClick={() => onDelete(active, x.d)} aria-label="ลบ"><X size={16} /></button></div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Chart({ linePts, markers, fairs }) {
+  const W = 480, H = 220, padL = 42, padR = 14, padT = 14, padB = 26;
+  if (linePts.length < 2) return <div className="chart-empty">ยังมีราคาน้อยเกินไป — เพิ่มราคาอย่างน้อย 2 จุด<br />แล้วเส้นเทรนด์จะขึ้นให้เห็น</div>;
+  const allP = linePts.map((d) => d.p).concat(markers.map((m) => m.p)).concat(fairs);
+  let minP = Math.min(...allP), maxP = Math.max(...allP);
+  if (minP === maxP) { minP -= 1; maxP += 1; }
+  const pad = (maxP - minP) * 0.08; minP -= pad; maxP += pad;
+  const allT = linePts.map((d) => d.t).concat(markers.map((m) => m.t));
+  let minT = Math.min(...allT), maxT = Math.max(...allT);
+  if (minT === maxT) maxT = minT + 86400000;
+  const x = (t) => padL + ((t - minT) / (maxT - minT)) * (W - padL - padR);
+  const y = (p) => padT + (1 - (p - minP) / (maxP - minP)) * (H - padT - padB);
+  const path = linePts.map((d, i) => (i ? "L" : "M") + x(d.t).toFixed(1) + " " + y(d.p).toFixed(1)).join(" ");
+  const area = path + ` L ${x(linePts[linePts.length - 1].t).toFixed(1)} ${H - padB} L ${x(linePts[0].t).toFixed(1)} ${H - padB} Z`;
+  const yt = [0, 0.5, 1].map((f) => minP + f * (maxP - minP));
+  const fmt = (t) => { const d = new Date(t); return d.getDate() + "/" + (d.getMonth() + 1); };
+  const dec = maxP < 50 ? 1 : 0;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+      {yt.map((v, i) => (
+        <g key={i}>
+          <line x1={padL} y1={y(v)} x2={W - padR} y2={y(v)} stroke="#EBEDE7" strokeWidth="1" />
+          <text x={padL - 6} y={y(v) + 3} textAnchor="end" fontSize="10" fill="#9AA09A">{v.toFixed(dec)}</text>
+        </g>
+      ))}
+      {fairs.map((f, i) => <line key={"f" + i} x1={padL} y1={y(f)} x2={W - padR} y2={y(f)} stroke="var(--brass)" strokeWidth="1.5" strokeDasharray="4 3" />)}
+      <path d={area} fill="rgba(23,50,44,0.06)" />
+      <path d={path} fill="none" stroke="var(--ink)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      {linePts.map((d, i) => <circle key={"c" + i} cx={x(d.t)} cy={y(d.p)} r="2.4" fill="var(--ink)" />)}
+      {markers.map((m, i) => {
+        const cx = x(m.t), cy = y(m.p);
+        return m.kind === "buy"
+          ? <polygon key={"m" + i} points={`${cx},${cy - 8} ${cx + 6},${cy + 4} ${cx - 6},${cy + 4}`} fill="var(--green)" stroke="#fff" strokeWidth="1.2" />
+          : <polygon key={"m" + i} points={`${cx - 6},${cy - 4} ${cx + 6},${cy - 4} ${cx},${cy + 8}`} fill="var(--red)" stroke="#fff" strokeWidth="1.2" />;
+      })}
+      <text x={padL} y={H - 8} fontSize="10" fill="#9AA09A">{fmt(linePts[0].t)}</text>
+      <text x={W - padR} y={H - 8} textAnchor="end" fontSize="10" fill="#9AA09A">{fmt(linePts[linePts.length - 1].t)}</text>
+    </svg>
+  );
+}
+
+function CalendarView({ trades, ref0, setRef0, onOpen }) {
+  const THMON = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+  const DOW = ["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"];
+  const { y, m } = ref0;
+  const iso = (yy, mm, dd) => `${yy}-${String(mm + 1).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+
+  const sells = {}, buys = {};
+  trades.forEach((t) => {
+    if (t.sellDate && isClosed(t)) (sells[t.sellDate] = sells[t.sellDate] || []).push(t);
+    if (t.entryDate) buys[t.entryDate] = (buys[t.entryDate] || 0) + 1;
+  });
+
+  const first = new Date(y, m, 1);
+  const startDow = (first.getDay() + 6) % 7;
+  const dim = new Date(y, m + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startDow; i++) cells.push({ other: true });
+  for (let d = 1; d <= dim; d++) cells.push({ d, date: iso(y, m, d) });
+  while (cells.length % 7 !== 0) cells.push({ other: true });
+
+  const ym = iso(y, m, 1).slice(0, 7);
+  const monthTrades = trades.filter((t) => t.sellDate && isClosed(t) && t.sellDate.slice(0, 7) === ym);
+  const mWin = monthTrades.filter((t) => profit(t) > 0).length;
+  const mRate = monthTrades.length ? Math.round((mWin / monthTrades.length) * 100) : null;
+  const mAvg = monthTrades.length ? monthTrades.reduce((s, t) => s + profit(t), 0) / monthTrades.length : null;
+
+  const shift = (delta) => { let nm = m + delta, ny = y; if (nm < 0) { nm = 11; ny--; } if (nm > 11) { nm = 0; ny++; } setRef0({ y: ny, m: nm }); };
+
+  return (
+    <div className="wrap slidein">
+      <div className="loghead"><h2>ปฏิทินผลตอบแทน</h2><p>ผลรายวันจากวันที่ขาย — จับจังหวะและแพทเทิร์น</p></div>
+      <div className="calcard">
+        <div className="calhead">
+          <h3>{THMON[m]} {y}</h3>
+          <div className="navbtns">
+            <button onClick={() => shift(-1)} aria-label="เดือนก่อน"><ArrowLeft size={16} /></button>
+            <button onClick={() => shift(1)} aria-label="เดือนถัดไป" style={{ transform: "scaleX(-1)" }}><ArrowLeft size={16} /></button>
+          </div>
+        </div>
+        <div className="dow">{DOW.map((d) => <span key={d}>{d}</span>)}</div>
+        <div className="cal">
+          {cells.map((c, i) => {
+            if (c.other) return <div className="cell other" key={i} />;
+            const dt = sells[c.date] || [];
+            const has = dt.length > 0;
+            const avg = has ? dt.reduce((s, t) => s + profit(t), 0) / dt.length : null;
+            const cls = has ? (avg >= 0 ? "win" : "loss") : "";
+            return (
+              <div className={"cell " + cls} key={i} onClick={() => has && onOpen(dt[0])} style={{ cursor: has ? "pointer" : "default" }}>
+                {buys[c.date] && <span className="edot" title="ซื้อวันนี้" />}
+                <span className="dn">{c.d}</span>
+                {has && <span className="rv">{dt.length > 1 ? dt.length + " ดีล" : pct(avg)}</span>}
+              </div>
+            );
+          })}
+        </div>
+        <div className="callegend">
+          <span><i className="sw" style={{ background: "#CFE1D7" }} /> กำไร</span>
+          <span><i className="sw" style={{ background: "#E7CEC8" }} /> ขาดทุน</span>
+          <span><i className="edot" style={{ position: "static" }} /> วันที่ซื้อ</span>
+        </div>
+      </div>
+
+      <div className="sect" style={{ marginTop: 2 }}>สรุปเดือนนี้ (จากวันที่ขาย)</div>
+      <div className="sgrid" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+        <div className="stat"><div className="v">{monthTrades.length}</div><div className="l">ดีลที่ปิด</div></div>
+        <div className="stat"><div className="v">{mRate == null ? "—" : mRate + "%"}</div><div className="l">Win rate</div></div>
+        <div className="stat"><div className="v" style={{ color: mAvg == null ? "var(--ink)" : mAvg >= 0 ? "var(--green)" : "var(--red)" }}>{mAvg == null ? "—" : pct(mAvg)}</div><div className="l">เฉลี่ย/ดีล</div></div>
+      </div>
+      <div className="readout">เพราะคุณถือยาว ~3 เดือน วันที่มีสีคือ “วันที่ขาย” จุดทองคือ “วันที่ซื้อ” — ปฏิทินนี้เลยเหมาะดูจังหวะเข้า-ออก มากกว่าผลรายวันแบบเทรดสั้น</div>
+    </div>
+  );
+}
+
+function LotLedger({ lots, onChange }) {
+  const [side, setSide] = useState("buy");
+  const [shares, setShares] = useState("");
+  const [price, setPrice] = useState("");
+  const list = lots || [];
+  const total = shares && price ? Number(shares) * Number(price) : null;
+  const add = () => {
+    if (!shares || !price) return;
+    onChange([...list, { id: Date.now(), side, shares: Number(shares), price: Number(price) }]);
+    setShares(""); setPrice("");
+  };
+  const del = (id) => onChange(list.filter((x) => x.id !== id));
+  const a = lotAgg(list);
+  return (
+    <>
+      <div className="lotadd">
+        <div className="seg2">
+          <button type="button" className={side === "buy" ? "on buy" : ""} onClick={() => setSide("buy")}>ซื้อ</button>
+          <button type="button" className={side === "sell" ? "on sell" : ""} onClick={() => setSide("sell")}>ขาย</button>
+        </div>
+        <div className="lotrow">
+          <input inputMode="decimal" value={shares} onChange={(e) => setShares(e.target.value)} placeholder="จำนวนหุ้น" />
+          <span className="mul">×</span>
+          <input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="ราคา/หุ้น" />
+        </div>
+        <div className="lotfoot">
+          <span className="lottotal">รวม {total == null ? "—" : baht(total)}</span>
+          <button type="button" className="addbtn" disabled={!shares || !price} onClick={add}>เพิ่มรายการ</button>
+        </div>
+      </div>
+      {list.length > 0 && (
+        <div className="plist" style={{ marginTop: 10 }}>
+          {list.map((x) => (
+            <div className="pp" key={x.id}>
+              <span className={"lotside " + x.side}>{x.side === "buy" ? "ซื้อ" : "ขาย"}</span>
+              <span className="d" style={{ marginLeft: 8 }}>{Number(x.shares).toLocaleString()} × {x.price}</span>
+              <span className="p">{baht(x.shares * x.price)}</span>
+              <button onClick={() => del(x.id)} aria-label="ลบ"><X size={16} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+      {list.length > 0 && (
+        <div className="lotsum">
+          {a.avgBuy != null && <div><span>ต้นทุนเฉลี่ย</span><b>{a.avgBuy.toFixed(2)}</b></div>}
+          {a.buyShares > 0 && <div><span>เงินลงทุนรวม</span><b>{baht(a.buyCost)}</b></div>}
+          {a.heldShares !== 0 && <div><span>หุ้นคงเหลือ</span><b>{a.heldShares.toLocaleString()} หุ้น</b></div>}
+          {a.avgSell != null && <div><span>ราคาขายเฉลี่ย</span><b>{a.avgSell.toFixed(2)}</b></div>}
+          {a.realized != null && <div><span>กำไร/ขาดทุน (บาท)</span><b style={{ color: a.realized >= 0 ? "var(--green)" : "var(--red)" }}>{baht(a.realized)}</b></div>}
+        </div>
+      )}
+    </>
+  );
+}
+
+function computeInsights(trades) {
+  const closed = trades.filter(isClosed);
+  const out = [];
+  if (closed.length < 3) {
+    out.push({ tone: "flat", title: "ยังมีข้อมูลน้อย", body: "กรอกดีลให้ครบสัก 5–8 ดีล ระบบจะเริ่มสรุป insight จากข้อมูลจริงของคุณ" });
+    return out;
+  }
+  const avg = (arr) => (arr.length ? arr.reduce((s, t) => s + profit(t), 0) / arr.length : null);
+  const onPlan = closed.filter((t) => !isFomo(t)), fomo = closed.filter(isFomo);
+  if (onPlan.length >= 1 && fomo.length >= 1) {
+    const a = avg(onPlan), b = avg(fomo);
+    out.push({ tone: b < a ? "down" : "up", title: "วินัยเข้าคือคานงัดของคุณ",
+      body: `ซื้อตามเป้าเฉลี่ย ${pct(a)} เทียบกับซื้อเกินเป้า (FOMO) ${pct(b)} — ต่างกัน ${pct(a - b)} จาก ${fomo.length} ดีลที่ไล่ราคา` });
+  }
+  const pr = trades.filter((t) => t.processLuck === "กระบวนการถูก").length;
+  const jl = trades.filter((t) => (t.processLuck || "").startsWith("แค่โชค")).length;
+  if (pr + jl > 0) {
+    if (jl > pr) out.push({ tone: "down", title: "ยังพึ่งโชคมากกว่าฝีมือ", body: `ดีลที่ตัดสินว่า “แค่โชค” มี ${jl} เทียบกับ “กระบวนการถูก” ${pr} — เป้าหมายคือทำให้ฝีมือแซงโชค` });
+    else out.push({ tone: "up", title: "กระบวนการเริ่มพิสูจน์ตัวเอง", body: `“กระบวนการถูก” ${pr} เทียบกับ “แค่โชค” ${jl} — เก็บดีลต่อไปให้ครบเพื่อยืนยัน edge` });
+  }
+  const byKey = (key) => { const m = {}; closed.forEach((t) => { const k = (t[key] || "").trim(); if (!k) return; (m[k] = m[k] || []).push(t); }); return m; };
+  const best = (m) => { let bk = null, bv = -Infinity, bn = 0; Object.entries(m).forEach(([k, a]) => { if (a.length >= 2) { const v = avg(a); if (v > bv) { bv = v; bk = k; bn = a.length; } } }); return bk ? { k: bk, v: bv, n: bn } : null; };
+  const bg = best(byKey("game")) || best(byKey("sector"));
+  if (bg && bg.v > 0) out.push({ tone: "up", title: `“${bg.k}” คือ edge ของคุณ`, body: `ให้ผลเฉลี่ย ${pct(bg.v)} จาก ${bg.n} ดีล — โฟกัสแนวนี้ให้มากขึ้น` });
+  const kr = closed.filter((t) => t.afterSell === "ขึ้นต่อ").length;
+  if (kr >= 2) out.push({ tone: "down", title: "กฎ +30% อาจตัดกำไรของดี", body: `มี ${kr} ครั้งที่ขายแล้วราคายังขึ้นต่อ — ลองแยกกฎขายของหุ้นพื้นฐานดีออกจากหุ้นเล่นรอบ` });
+  return out.slice(0, 4);
+}
+
+function Insights({ trades }) {
+  const items = computeInsights(trades);
+  return (
+    <div className="card2 insights">
+      <div className="c2head"><h3>Insights</h3> <span>จากข้อมูลของคุณ</span></div>
+      {items.map((it, i) => (
+        <div className="ins" key={i}>
+          <span className={"insic " + it.tone}>{it.tone === "up" ? <TrendingUp size={16} /> : it.tone === "down" ? <TrendingDown size={16} /> : <AlertTriangle size={16} />}</span>
+          <div><div className="inst">{it.title}</div><div className="insb">{it.body}</div></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function WinLoss({ trades }) {
+  const closed = trades.filter(isClosed);
+  if (closed.length === 0) return null;
+  const wins = closed.filter((t) => profit(t) > 0), losses = closed.filter((t) => profit(t) <= 0);
+  const wr = wins.length / closed.length;
+  const avgW = wins.length ? wins.reduce((s, t) => s + profit(t), 0) / wins.length : null;
+  const avgL = losses.length ? losses.reduce((s, t) => s + profit(t), 0) / losses.length : null;
+  const payoff = (avgW != null && avgL != null && avgL !== 0) ? avgW / Math.abs(avgL) : null;
+  const R = 52, C = 2 * Math.PI * R;
+  return (
+    <div className="card2">
+      <div className="c2head"><h3>แพ้ / ชนะ</h3> <span>อัตราชนะและความสมมาตรของกำไร-ขาดทุน</span></div>
+      <div className="wl">
+        <svg viewBox="0 0 128 128" className="donut">
+          <circle cx="64" cy="64" r={R} fill="none" stroke="#E3CBC6" strokeWidth="16" />
+          <circle cx="64" cy="64" r={R} fill="none" stroke="var(--green)" strokeWidth="16" strokeLinecap="butt"
+            strokeDasharray={`${(wr * C).toFixed(1)} ${C.toFixed(1)}`} transform="rotate(-90 64 64)" />
+          <text x="64" y="60" textAnchor="middle" fontSize="26" fontWeight="700" fill="var(--ink)">{Math.round(wr * 100)}%</text>
+          <text x="64" y="79" textAnchor="middle" fontSize="9.5" fill="var(--muted)">WIN RATE</text>
+        </svg>
+        <div className="wlside">
+          <div className="wlrow"><span><i className="d g" />ชนะ</span><b>{wins.length}</b></div>
+          <div className="wlrow"><span><i className="d r" />แพ้</span><b>{losses.length}</b></div>
+          <div className="wlbar"><span>กำไรเฉลี่ย</span><b className="pos">{avgW == null ? "—" : pct(avgW)}</b></div>
+          <div className="wlbar"><span>ขาดทุนเฉลี่ย</span><b className="neg">{avgL == null ? "—" : pct(avgL)}</b></div>
+          <div className="wlpay">Payoff <b>{payoff == null ? "—" : payoff.toFixed(2) + "×"}</b></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Breakdown({ trades, onFilter }) {
+  const [dim, setDim] = useState("ticker");
+  const [unit, setUnit] = useState("pct");
+  const closed = trades.filter(isClosed);
+  if (closed.length === 0) return null;
+  const label = { ticker: "หุ้น", game: "เกม", sector: "กลุ่ม" };
+  const useBaht = unit === "baht";
+  const src = useBaht ? closed.filter((t) => lotAgg(t.lots).realized != null) : closed;
+  const m = {};
+  src.forEach((t) => { const k = (t[dim] || "").trim() || "(ไม่ระบุ)"; (m[k] = m[k] || []).push(t); });
+  const rows = Object.entries(m).map(([k, a]) => ({
+    k, n: a.length,
+    v: useBaht ? a.reduce((s, t) => s + lotAgg(t.lots).realized, 0) : a.reduce((s, t) => s + profit(t), 0) / a.length,
+  })).sort((x, y) => y.v - x.v);
+  const maxAbs = Math.max(0.0001, ...rows.map((r) => Math.abs(r.v)));
+  const fmtVal = (v) => (useBaht ? baht(v) : pct(v));
+  return (
+    <div className="card2">
+      <div className="c2head"><h3>ผลตอบแทนแยกหมวด</h3> <span>{useBaht ? "กำไรรวมเป็นบาท" : "เฉลี่ย % ต่อดีล"} — แตะแถวเพื่อกรอง</span></div>
+      <div className="bdtoggles">
+        <div className="seg">
+          {["ticker", "game", "sector"].map((d) => <button key={d} className={dim === d ? "on" : ""} onClick={() => setDim(d)}>{label[d]}</button>)}
+        </div>
+        <div className="seg">
+          <button className={unit === "pct" ? "on" : ""} onClick={() => setUnit("pct")}>%</button>
+          <button className={unit === "baht" ? "on" : ""} onClick={() => setUnit("baht")}>บาท</button>
+        </div>
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ padding: "18px 4px", color: "var(--muted)", fontSize: 13.5, textAlign: "center", lineHeight: 1.5 }}>
+          ยังไม่มีข้อมูลบาท — ลงจำนวนหุ้นในรายการซื้อ-ขายของแต่ละดีลก่อน
+        </div>
+      ) : (
+        <div className="bd">
+          {rows.map((r) => (
+            <div className="bdrow" key={r.k} onClick={() => onFilter(r.k)}>
+              <span className="bdk">{r.k}</span>
+              <span className="bdbar">
+                <i className="mid" />
+                <i className={"bdfill " + (r.v >= 0 ? "pos" : "neg")} style={r.v >= 0 ? { left: "50%", width: (Math.abs(r.v) / maxAbs * 50) + "%" } : { right: "50%", width: (Math.abs(r.v) / maxAbs * 50) + "%" }} />
+              </span>
+              <span className={"bdv " + (r.v >= 0 ? "pos" : "neg")}>{fmtVal(r.v)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
+function Sel({ value, onChange, opts }) {
+  return (
+    <select value={value} onChange={onChange}>
+      <option value="">— เลือก —</option>
+      {opts.map((o) => <option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+}
+
+function Form({ draft, setDraft, onSave, onCancel, onDelete, exists }) {
+  const set = (k) => (e) => setDraft({ ...draft, [k]: e.target.value });
+  const fomo = isFomo(draft);
+  const p = isClosed(draft) ? profit(draft) : null;
+  const hd = holdDays(draft);
+  return (
+    <div className="slidein">
+      <div className="fhead">
+        <button className="iconbtn" onClick={onCancel} aria-label="กลับ"><ArrowLeft size={22} /></button>
+        <h2>{exists ? "แก้ไขดีล" : "บันทึกดีลใหม่"}</h2>
+      </div>
+      <div className="wrap">
+        <div className="sect">ก่อนเข้า · ล็อกก่อนกดซื้อ</div>
+        <div className="two">
+          <Field label="วันที่เข้า"><input type="date" value={draft.entryDate} onChange={set("entryDate")} /></Field>
+          <Field label="ชื่อหุ้น"><input value={draft.ticker} onChange={set("ticker")} placeholder="เช่น KTB" /></Field>
+        </div>
+        <Field label="กลุ่ม"><input value={draft.sector} onChange={set("sector")} placeholder="เช่น ธนาคาร" /></Field>
+        <Field label="เกมที่เล่น"><Sel value={draft.game} onChange={set("game")} opts={OPTIONS.game} /></Field>
+        <Field label="Thesis หลัก — ทำไมถึงซื้อ"><textarea value={draft.thesis} onChange={set("thesis")} /></Field>
+        <Field label="หลักฐานว่า “ถูก” (P/BV, P/E, Yield เทียบกลุ่ม)"><textarea value={draft.cheapEvidence} onChange={set("cheapEvidence")} /></Field>
+        <Field label="ถูกเพราะมองข้าม หรือ พื้นฐานด้อย?"><Sel value={draft.cheapReason} onChange={set("cheapReason")} opts={OPTIONS.cheapReason} /></Field>
+        <div className="two">
+          <Field label="Fair value ที่ประเมิน"><input inputMode="decimal" value={draft.fairValue} onChange={set("fairValue")} /></Field>
+          <Field label="ราคาที่ตั้งใจเข้า"><input inputMode="decimal" value={draft.targetEntry} onChange={set("targetEntry")} /></Field>
+        </div>
+        <Field label="ราคาเข้าจริง (หรือใช้รายการซื้อ-ขายด้านล่าง)"><input inputMode="decimal" value={draft.actualEntry} onChange={set("actualEntry")} /></Field>
+        {fomo && <div className="banner"><AlertTriangle size={16} /> ซื้อสูงกว่าราคาเป้า — ระวัง FOMO</div>}
+        <Field label="เงื่อนไขขาย (Exit rules)"><textarea value={draft.exitRules} onChange={set("exitRules")} /></Field>
+        <Field label="สภาพตลาด / ธีมตอนเข้า"><textarea value={draft.marketContext} onChange={set("marketContext")} /></Field>
+
+        <div className="sect">รายการซื้อ-ขาย · จำนวนหุ้น</div>
+        <LotLedger lots={draft.lots} onChange={(lots) => setDraft({ ...draft, lots })} />
+
+        <div className="sect">หลังออก · เติมหลังขายจบ</div>
+        <div className="two">
+          <Field label="วันที่ขาย"><input type="date" value={draft.sellDate} onChange={set("sellDate")} /></Field>
+          <Field label="ราคาขาย (หรือใช้รายการซื้อ-ขาย)"><input inputMode="decimal" value={draft.sellPrice} onChange={set("sellPrice")} /></Field>
+        </div>
+        {(p != null || hd != null) && (
+          <div className="live">
+            <div><div className="l">กำไร/ขาดทุน</div><div className="v" style={{ color: p == null ? "var(--ink)" : p >= 0 ? "var(--green)" : "var(--red)" }}>{p == null ? "—" : pct(p)}</div></div>
+            <div><div className="l">ระยะถือ</div><div className="v">{hd == null ? "—" : hd + " วัน"}</div></div>
+          </div>
+        )}
+        <Field label="ขายเพราะอะไร"><Sel value={draft.sellReason} onChange={set("sellReason")} opts={OPTIONS.sellReason} /></Field>
+        <Field label="ราคาขึ้นเพราะเหตุที่คาดไหม?"><Sel value={draft.rose} onChange={set("rose")} opts={OPTIONS.rose} /></Field>
+        <Field label="หลังขายราคาไปทางไหน"><Sel value={draft.afterSell} onChange={set("afterSell")} opts={OPTIONS.afterSell} /></Field>
+        <Field label="กระบวนการถูก หรือ แค่โชค?"><Sel value={draft.processLuck} onChange={set("processLuck")} opts={OPTIONS.processLuck} /></Field>
+        <Field label="บทเรียน"><textarea value={draft.lesson} onChange={set("lesson")} /></Field>
+
+        <div className="btns">
+          {exists && <button className="btn btn-danger" onClick={onDelete} aria-label="ลบดีล"><Trash2 size={18} /></button>}
+          <button className="btn btn-ghost" onClick={onCancel}>ยกเลิก</button>
+          <button className="btn btn-primary" onClick={onSave}>บันทึก</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
